@@ -13,11 +13,27 @@ from colour import Color
 from playsound import playsound
 import multiprocessing as mp
 import threading
-from calibration_lsl_exp import *
+from calibration_realtime import *
 
 
 
 def info_window(txt, key_txt):
+    '''
+    This function takes a txt file and returns a layout for a window with the text in the txt file.
+    
+    Parameters
+    ----------
+    txt : str
+        The path to the txt file.
+        key_txt : str
+        The key for the button in the window.
+        
+    Returns
+    -------
+    layout : list
+        The layout for the window.
+        
+        '''
     my_file = open(txt, "r")
     data = my_file.read()
     data_into_list = data.split("\n")
@@ -32,6 +48,8 @@ def info_window(txt, key_txt):
     return layout
 
 def trial_window():
+    '''
+    This function returns a layout for a window with an equation and an input field.'''
     layout = [[sg.Text(' ', size = (1,10))],
         [sg.Text(' ', key = 'eq', font='Arial 25')],
         [sg.InputText(size = (4,1), key='answer', font='Arial 20')],
@@ -40,6 +58,23 @@ def trial_window():
     return layout
 
 def relax_window(txt, key_txt):
+    '''
+    This function takes a txt file and returns a layout for a window with the text in the txt file.
+    It is used for the relaxation period during calibration.
+
+    Parameters
+    ----------
+    txt : str
+        The path to the txt file.
+
+    key_txt : str
+        The key for the button in the window.
+
+    Returns
+    -------
+    sg.Window
+        The window with the text in the txt file.
+    '''
     my_file = open(txt, "r")
     data = my_file.read()
     data_into_list = data.split("\n")
@@ -57,24 +92,55 @@ def relax_window(txt, key_txt):
     return sg.Window('Calibration', layout, element_justification='center', finalize=True, resizable=True)
 
 def clear_input(window, values):
+    '''
+    This function clears the input field in the window.
+
+    Parameters
+    ----------
+    window : sg.Window
+        The window with the input field.
+    values : dict
+        The values of the window.
+
+    Returns
+    -------
+    None.
+    '''
     for key in values:
         window[key]('')
     return None
 
 def calibration_app(q_from_lsl: mp.Queue(), q_to_lsl: mp.Queue(), markers):
+    '''
+    This function is the main function for the calibration user interface.
+    It takes the queues for the communication with the lsl calibration script and the markers dictionary.
+    It starts the lsl calibration script as a process and then starts the calibration user interface.
+    It also takes the participant name, the number of trials and the number of blocks as input.
+    
+    
+    Parameters
+    ----------
+    q_from_lsl : mp.Queue()
+        The queue for the communication from the lsl calibration script.
+    q_to_lsl : mp.Queue()
+        The queue for the communication to the lsl calibration script.
+    markers : dict
+        The markers dictionary.
+    
+    Returns
+    -------
+    None.
+    '''
 
     participant = input("Participant: ")
+
+    # save participant number
     with open('./Results/participant.txt', 'w') as f:
         f.write(participant)
     n_trials = 10
     max_bloc = 4
     sound = False
 
-    #target is the first stimulus, the other two are the secondary stimuli
-    # stimuli = ['sq.png', 'tri.png', 'cir.png']
-    # fix = ['fix.png']
-    
-    # trial_seq = trial_sequence_generator(primary, stimuli, n_trials)
 
     info_txt = "./UI/calibration_info.txt"
     welcome_txt = "./UI/calibration_welcome.txt"
@@ -85,6 +151,7 @@ def calibration_app(q_from_lsl: mp.Queue(), q_to_lsl: mp.Queue(), markers):
     sg.theme('Reddit')
     sg.set_options(font='Arial', keep_on_top=True)
 
+    # Create the window
     layout = [[sg.Column(info_window(welcome_txt, 'ok_welcome'), key = 'welcome'),
                sg.Column(info_window(info_txt, 'ok_info'), key = 'info', visible = False),
               sg.Column(info_window(pause_txt, 'ok_pause'), key= 'pause', visible = False)]]
@@ -92,13 +159,13 @@ def calibration_app(q_from_lsl: mp.Queue(), q_to_lsl: mp.Queue(), markers):
     welcome, trial, relax, end =  sg.Window('Main_window', layout, resizable=True, element_justification='center', finalize= True, size=(1280,650)), None, None, None
     welcome.maximize()
 
-    # command = ['python', 'lsl_calibration.py']
-
+    # start lsl calibration script as a process
     p = mp.Process(target = lsl_calib, args=(q_from_lsl, q_to_lsl, markers))
     p.start()
     start_time = time.time()
     
 
+    # count trials and blocs
     t_count = 0
     n_bloc = 0
 
@@ -233,16 +300,6 @@ def calibration_app(q_from_lsl: mp.Queue(), q_to_lsl: mp.Queue(), markers):
                         break
 
 
-
-# def trial_sequence_generator (primary, stimuli, n_trials):
-#     trial_sequence = []
-#     primary_trial = round(n_trials*primary)
-#     secondary_trial = round((n_trials - primary_trial)/2)
-#     trial_sequence.extend([stimuli[0]] * primary_trial)
-#     trial_sequence.extend([stimuli[1]] * secondary_trial)
-#     trial_sequence.extend([stimuli[2]] * secondary_trial)
-#     random.shuffle(trial_sequence)
-#     return trial_sequence
 
 
 

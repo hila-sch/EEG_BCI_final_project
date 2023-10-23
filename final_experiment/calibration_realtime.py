@@ -49,6 +49,29 @@ def ewma(x, alpha):
     return np.dot(w, x[::np.newaxis]) / w.sum(axis=1)
 
 def calculate_EI (epoch, bands):
+    '''
+    Calculate the EI for each epoch and return a list of EI values.
+
+    Parameters:
+    -----------
+    epoch : mne.epochs.Epochs
+            Epochs object containing the data.
+    bands : dictionary
+            Dictionary containing the bands' names and their limits.
+            Example: bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
+
+    Returns:
+    --------
+    ei : list
+            List of EI values for each epoch.
+
+    To calculate the EI:
+    The function first calculates the PSD for each epoch,
+    then averages the PSD over all electrodes and then averages the PSD over the
+    frequencies in the band of interest. 
+    The EI is then calculated by dividing the average PSD of the beta band by 
+    the sum of the average PSD of the theta and alpha bands.'''
+
     avg_bands = {}
     for band_name, band_limits in bands.items():
         low, high = band_limits
@@ -69,10 +92,34 @@ def filter_raw(raw, bandpass=(0.5, 45), notch=(50), notch_width=10):
 
 
 def event_manager(q_to_lsl, markers, event_queue, bs_event, ma_event, end_event, outlet):
-    '''This function is responsible for managing the event queue and the event array.
-    It is a separate thread that runs in parallel with the main thread.
-    It added the EEG markers to the LSL stream, in addition to adding them to the event array.
-    The event array is used for during process updates.'''
+    '''This function is responsible for managing the event queue.
+    It checks if the queue is empty, and if not, it gets the first item in the queue.
+    If the item is a marker, it is put in the event queue and sent to the LSL outlet.
+    If the item is the last marker, the end event is set and the function breaks.
+
+    Parameters:
+    -----------
+    q_to_lsl : queue.Queue
+        Queue containing the markers to be sent to the LSL outlet.
+    markers : dictionary
+        Dictionary containing the markers' names and their values.
+        Example: markers = {'baseline started': 'bs', 'baseline ended': 'be', 'MA started': 'ms', 'MA ended': 'me'}
+    event_queue : queue.Queue
+        Queue containing the markers to be sent to the LSL outlet.
+    bs_event : threading.Event
+        Event that is set when the relaxation baseline start marker is received.
+    ma_event : threading.Event
+        Event that is set when the mental arithmetic task start marker is received.
+    end_event : threading.Event
+        Event that is set when the last marker is received.
+    outlet : pylsl.StreamOutlet
+        LSL outlet to which the markers are sent.
+    
+
+    Returns:
+    --------
+    None
+'''
     while True:
         if not q_to_lsl.empty():
             msg = q_to_lsl.get_nowait()
@@ -101,6 +148,27 @@ def event_manager(q_to_lsl, markers, event_queue, bs_event, ma_event, end_event,
 
 
 def lsl_calib(q_from_lsl, q_to_lsl, markers):
+    '''
+    This function is responsible for the calibration phase.
+    It starts a child process that is responsible for managing the event queue.
+    It then starts the LSL client and gets the data from the LSL stream.
+    The data is filtered and the EI is calculated.
+    The EI is then saved to a file.
+    
+    Parameters:
+    -----------
+    q_from_lsl : queue.Queue
+        Queue containing the data from the LSL stream.
+    q_to_lsl : queue.Queue
+        Queue containing the markers to be sent to the LSL outlet.
+    markers : dictionary
+        Dictionary containing the markers' names and their values.
+        Example: markers = {'baseline started': 'bs', 'baseline ended': 'be', 'MA started': 'ms', 'MA ended': 'me'}
+
+    Returns:
+    --------
+    None
+    '''
     bs_event = threading.Event()
     ma_event = threading.Event()
     end_event = threading.Event()
@@ -119,22 +187,10 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
     wait_max = 5
 
 
-    # Load a file to stream raw data
-    #data_path = sample.data_path()
-    # data_path = 'sub1.fif'
-    # #raw_fname = data_path  / 'MEG' / 'sample' / 'sample_audvis_filt-0-40_raw.fif'
-    # raw = read_raw_fif(data_path).load_data()
-
-    
-
     #for the loop:
     stop_time = 300
     t = 0 
-    #generate_data = True
 
-
-
-    # For this example, let's use the mock LSL stream.
     n_epochs = 3
     n_sec = 5
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
@@ -148,10 +204,6 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
 
     bandpass = (0.5, 45)
 
-    #recording
-    # record_dir = Path('~/bsl_data/examples').expanduser()
-    # os.makedirs(record_dir, exist_ok=True)
-    # print (record_dir)
 
     
 
@@ -164,17 +216,6 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
         print('Child process started')
 
 
-
-        # if msg == 'video':
-        #     print("video started- will now compute engagement index")
-        # msg = q_to_lsl.get()
-        # # if msg != None:
-        # #     msg_str = str(msg)
-        # #     print(f'msg is: {msg}')
-        
-        # if event_queue.get_nowait() == markers['video started']:
-        #     print("video started- will now compute engagement index")
-        # if video_event.is_set():
         time.sleep(5)
         while end_event.is_set() == False:
             # while video_event.is_set():
@@ -184,7 +225,6 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
             epoch.resample(128)
 
             # filter data
-            # epoch.notch_filter(notch, notch_widths=notch_width)
             epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
             # filtered_epoch = filter_raw(epoch)
             #epoch.filter(l_freq = 0.5, h_freq = 40)
@@ -195,16 +235,6 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
             print(temp_score)
             ei_score.append(temp_score) # list that saves all the ei scores
             # print(ei_score)
-
-            # update min and max values if needed
-            
-            # create a list for the the last 30 seconds of EI scores
-            # ei_window = []
-            # add the last 3 EI scores (15 seconds):
-            # if len(ei_score) > 0 :
-            #     ei_window = ei_score[-3:] + temp_score
-            # else:
-            # ei_window = ei_score + temp_score
         
 
             ei_arr = np.array(ei_score)
@@ -274,50 +304,7 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
             # convert lists to numpy array
 
 
-        
-
-    # ei_bs_arr = np.array(ei_bs)
-    # ei_ma_arr = np.array(ei_ma)
-
-    # # calculate median filter
-    # ei_mid_bs = scipy.ndimage.median_filter(ei_bs_arr, size = 3)
-    # ei_mid_ma = scipy.ndimage.median_filter(ei_ma_arr, size = 3)
-
-    # # calculate ewma
-    # ei_ewma_bs = ewma(ei_mid_bs, alpha = 0.2)
-    # ei_ewma_ma = ewma(ei_mid_ma, alpha = 0.2)
-
-
-    # # save numpy array to csv file
-    # np.savetxt(r'./Results/ei_bs.csv', ei_ewma_bs, delimiter=',')
-    # np.savetxt(r'./Results/ei_ma.csv', ei_ewma_ma, delimiter=',')
-
-
-            # ei_result = np.mean(ei_ewma)
-
-
-            # recorder.stop()
-            # print (recorder)
-
-
-
-    # with open(r'C:/Users/hilas/OneDrive/RUG_CCS/year2/Thesis/Project/ei.txt', 'w') as fp:
-    #     fp.write("\n".join(str(item) for item in ei_score))
-
-    # with open(r'C:/Users/hilas/OneDrive/RUG_CCS/year2/Thesis/Project/ei_mid.txt', 'w') as fp:
-    #     fp.write("\n".join(str(item) for item in ei_mid_to_file))
-
-    # with open(r'C:/Users/hilas/OneDrive/RUG_CCS/year2/Thesis/Project/ei_ewma.txt', 'w') as fp:
-    #     fp.write("\n".join(str(item) for item in ei_ewma_to_file))
-
-    # with open(r'ei_bs.txt', 'w') as fp:
-    #     fp.write("\n".join(str(item) for item in avg_ei_bs))
-    
-    # with open(r'ei_ma.txt', 'w') as fp:
-    #     fp.write("\n".join(str(item) for item in avg_ei_ma))
-
-
-
+ 
 # main function is necessary here to enable script as own program
 # in such way a child process can be started (primarily for Windows)
 # if __name__ == '__main__':

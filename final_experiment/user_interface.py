@@ -1,5 +1,4 @@
 import PySimpleGUI as sg
-# import PySimpleGUIQt as sg
 import pandas as pd
 import csv
 import vlc
@@ -448,21 +447,6 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 main['attention_q'].update(visible=True)
 
 
-            # if event == 'start':
-            #     # start timer 
-            #     timer_running = True
-            #     time_remaining = 10 # 5 minutes
-            #     timer_paused = False
-
-            # if timer_running and not timer_paused:
-            #     time_remaining = time_remaining - 1
-            #     time_string = f'{time_remaining:02d}'
-            #     main['-TIMER-'].update(time_string)
-        
-            # if time_remaining == 0:
-            #     timer_running = False
-            #     timer_paused = True
-                
 
         if window == questions:
             q_count+=1
@@ -482,12 +466,9 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                             if values_q[answer_key] == True:
                                 count_correct +=1
                     
-                    # correct_answer = {'video.'+str(video_count)+'.'+str(q_count): [count_correct]}
                     print('correct answers: ' + str(count_correct))
                     df_answer['video.'+str(video_count)+'.'+str(q_count)] = [count_correct]
-                    # print(values_q)
-                    # df_total_answer =  pd.concat([df_total_answer , df_answer])
-                    # print(df_answer)
+
                     questions.hide()
 
                     if q_count == 1:
@@ -505,17 +486,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                         main.maximize()
                         break
 
-                        # if video_count < 3: 
-                        #     main['explainer'].update(visible=False)
-                        #     main['between'].update(visible=True)
-                        #     # relax = relax_window(relax_file, 'ok_from_relax')
-                        #     # sound = False
-                        #     # relax.maximize()
-                        #     break
-                        # else:
-                        #     main.un_hide()
-                        #     main.maximize()
-                        #     main['end'].update(visible=True)
+
 
                 if event_q == sg.WIN_CLOSED:
                     questions.close()
@@ -637,10 +608,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     msg = markers['video paused']
                     q_to_lsl.put(msg)
                 
-                # if list_player.is_playing():
-                #     video['-MESSAGE_AREA-'].update("{:02d}:{:02d} / {:02d}:{:02d}".format(*divmod(player.get_time()//1000, 60),
-                # #                                                         *divmod(player.get_length()//1000, 60)))
-                
+
                 if list_player.get_state() == vlc.State.Ended or event1 == 'q':
                     list_player.stop()
                     if end_video_sent == False:
@@ -651,22 +619,6 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     video['pause'].update(visible = False)
                     video['continue'].update(visible = True)
                     video_event.clear()
-
-
-
-                # if event1 == ' ':
-                #     msg = markers['attention']
-                #     q_to_lsl.put(msg)
-                    # video['feedback'].update(background_color = colors[c].hex)
-
-                # if event1 == '-THREAD-':
-                #     ei = int(values1[event1])
-                #     print('message accepted from thread: ', ei, ' yay')
-                #     if ei < 100 :
-                #         video['feedback'].UpdateBar(ei)
-                #         video['feedback'].update(bar_color = (colors[ei].hex, '#E8E8E8'))
-
-            
 
                     
 
