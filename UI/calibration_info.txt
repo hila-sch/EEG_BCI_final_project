@@ -1,0 +1,4 @@
+In this experiment, you will be asked to solve simple math equations.
+Please type your answer below the equation. If your answer is correct, 
+you will automatically continue to the next trial.
+Try to be as quick and as precise as you can.
