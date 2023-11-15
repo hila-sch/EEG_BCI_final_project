@@ -13,7 +13,8 @@ import queue
 from datetime import datetime
 
 import multiprocessing as mp
-from realtime_script import *
+#from realtime_script_discrete import *
+from realtime_script_runfile import *
 import threading
 
 QUESTION_FONT = 'Arial 16 bold'
@@ -72,25 +73,46 @@ def question_window(questions_file, video):
 def between_videos_window():
     '''this function returns a layout with a page for two simple questions following the video:
     how familiar were you with the topic, and what was your attention level'''
-    layout = [[sg.Text('How familiar were you with the topic of the video prior to watching it?', font=QUESTION_FONT)],
+    question1 = "How would you rate your level of sleepiness?"
+    answers1 = ['Exteremly alert', 'Very alert', 'Alert', 'Rather alert', 'Neither alert nor sleepy', 'Some signs of sleepiness', 'Sleepy, but no effort to stay awake', 'Sleepy, but some effort to stay awake', 'Very sleepy, great effort to stay awake', 'Extremely sleepy, cannot stay awake']
+    col1 = [ [sg.Text(question1, font=QUESTION_FONT)],
+                                [sg.Radio(answers1[0], 'attention', key='1_alert')],
+                                [sg.Radio(answers1[1], 'attention', key='2_alert')],
+                                [sg.Radio(answers1[2], 'attention', key='3_alert')],
+                                [sg.Radio(answers1[3], 'attention', key='4_alert')],
+                                [sg.Radio(answers1[4], 'attention', key='5_alert')],
+                                [sg.Radio(answers1[5], 'attention', key='6_alert')],
+                                [sg.Radio(answers1[6], 'attention', key='7_alert')],
+                                [sg.Radio(answers1[7], 'attention', key='8_alert')],
+                                [sg.Radio(answers1[8], 'attention', key='9_alert')],
+                                [sg.Radio(answers1[9], 'attention', key='10_alert')],
+                                [sg.Text('', size= (1,5))]]
+    
+    col2 = [[sg.Text('How familiar were you with the topic of the video prior to watching it?', font=QUESTION_FONT)],
                                 [sg.Radio('Not at all familiar', 'familiar', key='-2_familiar')],
                                 [sg.Radio('Slightly familiar', 'familiar', key='-1_familiar')],
                                 [sg.Radio('Somewhat familiar', 'familiar', key='0_familiar')],
                                 [sg.Radio('Moderately familiar ', 'familiar',  key = '1_familiar')],
                                 [sg.Radio('Extremely familiar', 'familiar', key = '2_familiar')],
                                 [sg.Text('', size= (1,1))],
-                                [sg.Text('How would you estimate your attention level during the video lecture?', font=QUESTION_FONT)],
-                                [sg.Text('very low'), sg.Slider(range=(1,5), default_value = 3, orientation='horizontal', tick_interval=1, key = 'attention'),
-                                 sg.Text('very high')],
-                                 [sg.Text('', size= (1,5))],
-                                 [sg.Button('Continue', key = 'continue_between')]
-                                ]
+                                [sg.Text('The feedback accurately reflected my attentional state', font=QUESTION_FONT)],
+                                [sg.Text('Strongly disagree'), sg.Slider(range=(1,5), default_value = 3, orientation='horizontal', tick_interval=1, key = 'fdb_acc'),
+                                 sg.Text('Strongly agree')],
+                                 [sg.Text('', size= (1,1))],
+                                 [sg.Text('The feedback helped me focus better', font=QUESTION_FONT)],
+                                [sg.Text('Strongly disagree'), sg.Slider(range=(1,5), default_value = 3, orientation='horizontal', tick_interval=1, key = 'fdb_help'),
+                                 sg.Text('Strongly agree')]]
+                                 
+    
+    layout = [[sg.Column(col1), sg.Column(col2)],
+        [sg.Button('Continue', key = 'continue_between')]]
     return layout
 
 def video_window ():
     '''This function returns a window with all the elements ready for presenting a video.'''
     layout = [[sg.Image('', size=(300, 170), key='-VID_OUT-')],
-              [sg.Text(' ', key='feedback', size=(220,2), border_width =3)],
+              [sg.Column([[sg.Text(' ', key='feedback', size=(220,2), border_width =3)]], justification='center')],
+              #[sg.Text(' ', key='feedback', size=(220,2), border_width =3)],
             #   [sg.ProgressBar(100, orientation='h', size=(100, 20), key='feedback', visible = False, bar_color = ('#E8E8E8', '#E8E8E8'), border_width = 1, style = 'xpnative')],
               [sg.Text('If you are ready to start watching the video, click ', font='Arial 20', key='ready'),
                sg.Button('start', size=(6, 1), pad=(1, 1), visible=True), 
@@ -257,7 +279,7 @@ def improve_data(df, conditions):
     df['video1'] = [conditions[0]]
     df['video2'] = [conditions[1]]
     df['video3'] = [conditions[2]]
-    df.drop(['Female', 'Male', 'Nonbinary', 'prefer_not', 'Dutch', 'German', 'English', 'Other', 'Other_language', 'attention', '-2_familiar', '-1_familiar', '0_familiar', '1_familiar', '2_familiar'], axis=1, inplace=True)
+    df.drop(['Female', 'Male', 'Nonbinary', 'prefer_not', 'Dutch', 'German', 'English', 'Other', 'Other_language',  '-2_familiar', '-1_familiar', '0_familiar', '1_familiar', '2_familiar'], axis=1, inplace=True)
 
 def get_false_feedback(window, n_epochs):
     '''This function returns a list of false feedback for the given window size.'''
@@ -276,6 +298,16 @@ def get_false_feedback(window, n_epochs):
 
     return false_feedback[start_index:start_index+len_window]
 
+def feedback_window():
+    '''
+    This is a simple window that pops up when the engagement index goes below the threshold.
+    It incdlues a picture, and a short text asking the participant to press the button to close the window
+    '''
+    layout = [[sg.Image('alarm.png', background_color = '#e6e6e6')]]
+    
+    return layout
+
+
 def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     questions_file = './UI/questions.csv'
     explainer_file = "./UI/experiment_info.txt"
@@ -289,11 +321,16 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     
     random.shuffle(video_path)
 
-    with open('./Results/' + date_now + '_videos.txt', 'w') as f:
-       f.write("\n".join(str(item) for item in video_path))
+    # with open('./Results/' + date_now + '_videos.txt', 'w') as f:
+    #    f.write("\n".join(str(item) for item in video_path))
 
     window_sec = 5 
     n_epochs = 3
+
+    feedback_pause = 30
+    threshold_period = 15
+    low_period = threshold_period / window_sec
+    pause_length = feedback_pause / window_sec
 
     # prepare colors:
     red = Color("red")
@@ -318,8 +355,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     random.shuffle(conditions)
 
     # save condition information to txt file
-    with open('./Results/' + date_now + '_conditions.txt', 'w') as f:
-       f.write("\n".join(str(item) for item in conditions))
+    # with open('./Results/' + date_now + '_conditions.txt', 'w') as f:
+    #    f.write("\n".join(str(item) for item in conditions))
     
     sg.theme('Reddit')
     # sg.set_options(font='Arial', keep_on_top=True)
@@ -332,7 +369,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                sg.Column(txt_window(end_file, 'ok_from_end'), key = 'end', visible = False),
                sg.Column(between_videos_window(), key= 'between', visible = False)]]
     
-    main, video, questions, relax =  sg.Window('Main_window', layout, resizable=True, element_justification='center', finalize= True, size=(1280,650)), None, None, None
+    main, video, questions, relax, feedback =  sg.Window('Main_window', layout, resizable=True, element_justification='center', finalize= True, size=(1280,650)), None, None, None, None
+
     main.maximize()
 
     p = mp.Process(target = lsl_main, args=(q_from_lsl, q_to_lsl, markers))
@@ -391,13 +429,19 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 questions.maximize()
 
             if event == 'continue_between' and video_count < 3:
-                df['attention_'+str(video_count)] = values['attention'] # save attention score
+                #df['attention_'+str(video_count)] = values['attention'] # save attention score
                 for i in range(-2, 3): # save familiarity scores
                     if values[str(i)+'_familiar'] == True:
                         df['familiar_'+str(video_count)] = i
+                # save attention score
+                for i in range(1, 11):
+                    if values[str(i)+'_alert'] == True:
+                        df['attention_'+str(video_count)] = i
+
                 
                 print(df)
-                keys = ['attention', '-2_familiar', '-1_familiar', '0_familiar', '1_familiar', '2_familiar']
+                keys = ['-2_familiar', '-1_familiar', '0_familiar', '1_familiar', '2_familiar']
+                keys = ['attention_1', 'attention_2', 'attention_3', 'attention_4', 'attention_5', 'attention_6', 'attention_7','attention_8', 'attention_9', 'attention_10','familiar_1', 'familiar_2', 'familiar_3']
 
                 for key in keys:
                     values[key] = None
@@ -549,6 +593,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
             ei_queue = queue.Queue()
             video_event.set()
             threading.Thread(target = the_thread, args=(window, q_from_lsl, ei_queue, video_event), daemon=True).start()  
+            count_low = 0
+            count_pause = 0
 
             # set condition
             condition = conditions[video_count]
@@ -593,10 +639,37 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 if not ei_queue.empty():
                     ei = int(ei_queue.get())
                     print('message accepted from thread: ', ei, ' yay')
-                    if ei < 100 and condition == 'F':
-                        video['feedback'].update(background_color = colors[ei].hex)
-                        # video['feedback'].UpdateBar(ei)
-                        # video['feedback'].update(bar_color = (colors[ei].hex, '#E8E8E8'))
+
+                    if ei < 80 and condition == 'F':
+                        count_low += 1
+                        #video['feedback'].update(background_color = colors[ei].hex)
+                        if count_low >= low_period and count_pause == 0:
+                            feedback = sg.Window('feedback', feedback_window(), element_justification='center', background_color = '#e6e6e6',size = (350,300), finalize=True, resizable=True, return_keyboard_events=True, no_titlebar=True, keep_on_top=True, grab_anywhere=True)
+                            #video['feedback'].update(value = 'hello')
+                            #show feedback for 5 seconds
+                            #time.sleep(5)
+                            count_pause = 1
+                            # check if the button was pressed, if pressed close the window
+                            while True:
+                                event2, values2 = feedback.read(timeout=1000)
+                                if event2 == 'm':
+                                    feedback.close()
+                                    break
+                                if event2 == sg.WIN_CLOSED:
+                                    feedback.close()
+                                    break
+                        # count low is used to determine how long ei values were below threshold (3*5 - 15 seconds)
+                        # count_pause is used for the pause between feedbacks: pause_length * 5 seconds
+                        elif count_low >= low_period and (count_pause < pause_length):
+                            count_pause +=1
+                        elif count_low >= low_period and count_pause == pause_length:
+                            count_pause = 0
+                    else:
+                        count_low = 0
+                        count_pause = 0
+                        video['feedback'].update(value = '')
+
+                    
                     if condition == 'FF':
                         ei = int(ff_list[i])
                         print(ei)

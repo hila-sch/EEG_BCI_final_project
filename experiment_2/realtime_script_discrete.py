@@ -354,11 +354,11 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
                     print(f"computation took {toc - tic:0.4f} seconds")
 
 
-                print('sending feedcack to parent process')
-                msg = ei_result
+                    print('sending feedcack to parent process')
+                    msg = ei_result
 
-                # send the score to the parent process for feedback
-                q_from_lsl.put(msg)
+                    # send the score to the parent process for feedback
+                    q_from_lsl.put(msg)
 
 
                         

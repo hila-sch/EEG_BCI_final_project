@@ -8,9 +8,8 @@ import msvcrt
 import queue
 import multiprocessing as mp
 import threading
-from datetime import datetime
 import pandas as pd
-
+from datetime import datetime
 from mne.datasets import sample
 from mne.io import read_raw_fif
 import time
@@ -92,6 +91,7 @@ def calculate_EI (epoch, bands):
     
     sum_lists = np.add(avg_bands['theta'], avg_bands['alpha'])
     ei = np.divide(avg_bands['beta'], sum_lists)
+    # ei_mid = signal.medfilt(ei, kernel_size=3)
     return ei
 
 def find_min_max(participant_number):
@@ -116,6 +116,7 @@ def find_min_max(participant_number):
     ei_min, ei_max = min_max[0], min_max[1]
 
     return ei_min, ei_max
+
 
 
 #function to check if the queue is empty, and otherwise return the first item
@@ -156,6 +157,8 @@ def event_manager(q_to_lsl, markers, event_queue, video_event, end_event, outlet
             msg = q_to_lsl.get_nowait()
             print(msg)
             if msg in markers.values():
+                # newrow = np.array([msg['event_type'], msg['event_onset']])
+                # event_array = np.vstack([event_array, newrow])
                 event_queue.put_nowait(msg)
                 outlet.push_sample([msg])
 
@@ -168,7 +171,9 @@ def event_manager(q_to_lsl, markers, event_queue, video_event, end_event, outlet
 
                 if msg == markers['last video ended']:
                     print('last video ended')
+                    # ma_event.clear()
                     end_event.set()
+                    # np.save('event_array.npy', event_array)
                     break
 
 def lsl_main(q_from_lsl, q_to_lsl, markers):
@@ -213,19 +218,19 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     
     
     # threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
+        # print(__doc__)
 
     # this is the host id that identifies your stream on LSL
     host = 'mne_stream'
-
     # this is the max wait time in seconds until client connection
     wait_max = 5
 
 
     # Load a file to stream raw data
     # #data_path = sample.data_path()
-    # data_path = 'sub1.fif'
+    data_path = 'C:/Users/hilas/Desktop/Pilot_results/P2pilot.fif'
     # #raw_fname = data_path  / 'MEG' / 'sample' / 'sample_audvis_filt-0-40_raw.fif'
-    # raw = read_raw_fif(data_path).load_data()
+    raw = read_raw_fif(data_path).load_data()
 
 
     bandpass = (1, 45)
@@ -233,12 +238,10 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     # notch_width = 10
 
 
-    # number of epochs to compute EI for
+
+    # For this example, let's use the mock LSL stream.
     n_epochs = 3
-
-    # number of seconds per epoch
     n_sec = 5
-
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
     channels = ['F7', 'F3', 'Fz', 'F4', 'F8', 'O1', 'O2', 'Oz']
     ei_score = []
@@ -249,7 +252,6 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     norm_result = []
 
 
-    # create a stream outlet
     info = StreamInfo(name='Trigger_stream', type='Markers', channel_count=1, nominal_srate=0, source_id='psy_marker')
     outlet = StreamOutlet(info) 
     # Broadcast the stream.   
@@ -258,107 +260,113 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     # start the event manager thread
     threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
 
-    # with MockLSLStream(host, raw, 'eeg'):
-    with LSLClient(host=host) as client:
-        client_info = client.get_measurement_info()
-        sfreq = int(client_info['sfreq'])
+    with MockLSLStream(host, raw, 'eeg'):
+        with LSLClient(host=host) as client:
+            start_time = time.time()
+            client_info = client.get_measurement_info()
+            sfreq = int(client_info['sfreq'])
 
-        # print message from parent process
-        print('Child process started')
+            # print message from parent process
+            print('Child process started')
 
-        # wait for video start
-        msg = event_queue.get()
-        
-        # start computing EI when video starts
-        if msg == markers['video start']:
-            print("video started- will now compute engagement index")
-            while end_event.is_set() == False:
-                # while video_event.is_set():
-                for ii in range(n_epochs):
-                    tic = time.perf_counter()
 
-                    print('Got epoch %d/%d' % (ii + 1, n_epochs))
-                    epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
+            # if msg == 'video':
+            #     print("video started- will now compute engagement index")
+            msg = event_queue.get()
+            
 
-                    # resample
-                    epoch.pick_channels(channels)
-                    epoch.resample(128)
+            video_count = 0
 
-                    # filter data
-                    epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
 
-                    # calculate EI
-                    ei = calculate_EI(epoch, bands)
-                    print(f'ei computed is {ei}')
+            if msg == markers['video start']:
+                print("video started- will now compute engagement index")
+                while end_event.is_set() == False:
+                    # while video_event.is_set():
+                    for ii in range(n_epochs):
+                        tic = time.perf_counter()
 
-                    temp_score = ei.item(-1)
-                    print(temp_score)
+                        print('Got epoch %d/%d' % (ii + 1, n_epochs))
+                        epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
 
-                    ei_score.append(temp_score) # list that saves all the ei scores
-                    print(ei_score)
+                        # resample
+                        epoch.pick_channels(channels)
+                        epoch.resample(128)
 
-                    # update min and max values if needed
-                    
-                    # create a list for the the last 30 seconds of EI scores
-                    # ei_window = []
-                    # add the last 3 EI scores (15 seconds):
-                    # if len(ei_score) > 0 :
-                    #     ei_window = ei_score[-3:] + temp_score
-                    # else:
-                    # ei_window = ei_score + temp_score
-                
+                        # filter data
+                        epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
 
-                    ei_arr = np.array(ei_score)
-                    print("ei array created")
-                    #ei_mid = signal.medfilt(ei_arr, kernel_size=3)
+                        # calculate EI
+                        ei = calculate_EI(epoch, bands)
+                        print(f'ei computed is {ei}')
 
-                    # apply median filter
-                    # if len(ei_arr) < 3:
-                    #     ei_mid = ei_arr
-                    # else:
-                    ei_mid = scipy.ndimage.median_filter(ei_arr, size = 3)
-                    print(ei_mid)
-                    print("median filter completed")
+                        temp_score = ei.item(-1)
+                        print(temp_score)
 
-                    # apply exponential weighted moving average
-                    ei_ewma = ewma(ei_mid, alpha = 0.2)
-                    print("ewma completed")
+                        ei_score.append(temp_score) # list that saves all the ei scores
+                        print(ei_score)
 
+                        # update min and max values if needed
                         
-                    if min(ei_ewma) < ei_min:
-                        ei_min = min(ei_ewma)
-                        print("new min: ", ei_min)
-                    if max(ei_ewma) > ei_max:
-                        ei_max = max(ei_ewma)
-                        print("new max: ", ei_max)
+                        # create a list for the the last 30 seconds of EI scores
+                        # ei_window = []
+                        # add the last 3 EI scores (15 seconds):
+                        # if len(ei_score) > 0 :
+                        #     ei_window = ei_score[-3:] + temp_score
+                        # else:
+                        # ei_window = ei_score + temp_score
+                    
 
-                    print('current min: ', ei_min, 'current max: ', ei_max)
+                        ei_arr = np.array(ei_score)
+                        print("ei array created")
+                        #ei_mid = signal.medfilt(ei_arr, kernel_size=3)
 
-                    # normalize the scores
-                    ei_norm = ((ei_ewma - ei_min) / (ei_max - ei_min)) * 100
+                        # apply median filter
+                        # if len(ei_arr) < 3:
+                        #     ei_mid = ei_arr
+                        # else:
+                        ei_mid = scipy.ndimage.median_filter(ei_arr, size = 3)
+                        print(ei_mid)
+                        print("median filter completed")
 
-                    # ei_norm = (ei_ewma - 0) / (1 - 0) * 100
-                    print("normalization completed")
+                        # apply exponential weighted moving average
+                        ei_ewma = ewma(ei_mid, alpha = 0.2)
+                        print("ewma completed")
 
-                    # ei_result = math.ceil(np.mean(ei_norm))
-                    ei_result = math.ceil(ei_norm[-1])
+                            
+                        if min(ei_ewma) < ei_min:
+                            ei_min = min(ei_ewma)
+                            print("new min: ", ei_min)
+                        if max(ei_ewma) > ei_max:
+                            ei_max = max(ei_ewma)
+                            print("new max: ", ei_max)
 
-                    temp_result.append(temp_score)
-                    #mid_result.append(ei_mid[-1])
-                    ewma_result.append(ei_ewma[-1])
-                    norm_result.append(ei_result)
+                        print('current min: ', ei_min, 'current max: ', ei_max)
 
-                    print(f'ei score is : {ei_result}')
-                    toc = time.perf_counter()
+                        # normalize the scores
+                        ei_norm = ((ei_ewma - ei_min) / (ei_max - ei_min)) * 100
 
-                    print(f"computation took {toc - tic:0.4f} seconds")
+                        # ei_norm = (ei_ewma - 0) / (1 - 0) * 100
+                        print("normalization completed")
+
+                        # ei_result = math.ceil(np.mean(ei_norm))
+                        ei_result = math.ceil(ei_norm[-1])
+
+                        temp_result.append(temp_score)
+                        #mid_result.append(ei_mid[-1])
+                        ewma_result.append(ei_ewma[-1])
+                        norm_result.append(ei_result)
+
+                        print(f'ei score is : {ei_result}')
+                        toc = time.perf_counter()
+
+                        print(f"computation took {toc - tic:0.4f} seconds")
 
 
-                print('sending feedcack to parent process')
-                msg = ei_result
+                        print('sending feedcack to parent process')
+                        msg = ei_result
 
-                # send the score to the parent process for feedback
-                q_from_lsl.put(msg)
+                        # send the score to the parent process for feedback
+                        q_from_lsl.put(msg)
 
 
                         
@@ -368,6 +376,12 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
                 df.to_csv(df_file, index=False)
         
     print('Streams closed')
+
+    # convert avg_ei to numpy array and save to file
+    print(avg_ei)
+    
+
+
 
 
 

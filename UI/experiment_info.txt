@@ -1,12 +1,10 @@
-During this experiment, you will be watching three short video lectures on different topics.
-For some of the videos, you will receive feedback on your sustained attention level. 
-The feedback will be presented as a coloured rectangle below the video. 
-The colours follow a traffic light structure:
-Red = low attention, please try to focus better on the video.
-Orange/yellow = medium attention level.
-Green = high attention.
-Your goal is to try to keep your attention in the yellow to green range. 
-Before and after each lecture, you will be asked to answer questions about the content of the lecture. 
+Welcome to the experiment! Here's a brief overview of what to expect:
+1. you will be watching three short video lectures on different topics.
+2. For some of the videos, you will receive feedback on your sustained attention level. 
+3. Visual feedack: An image of a coffee cup signifies low alertness. 
+4. Haptic feedback: A vibration signifies low alertness.
+5. When you see/feel the feedback, press the button to acknowledge the feedback. Then, try to focus better on the lecture. 
+6. Before and after each lecture, you will be asked to answer questions about the content of the lecture. 
 If you are unsure of an answer, it's better to leave the question blank than to guess.
-If you experience any discomfort, you can pause the video and inform the experimenter.
+7. If you experience any discomfort, you can pause the video and inform the experimenter.
 
