@@ -1,4 +1,4 @@
-String myCmd;
+String myCMD;
 
 
 void setup() {
@@ -12,8 +12,8 @@ while(Serial.available()==0){
 pinMode(13,OUTPUT);
 
 }
-myCmd = Serial.readStringUntil('\r');
-Serial.println(myCmd);
+myCMD = Serial.readStringUntil('\r');
+Serial.println(myCMD);
 if (myCMD == "ON"){
   digitalWrite(13,HIGH);
 }

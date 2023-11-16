@@ -11,7 +11,8 @@ from pathlib import Path
 from colour import Color
 import queue
 from datetime import datetime
-
+import serial
+import time
 import multiprocessing as mp
 #from realtime_script_discrete import *
 from realtime_script_runfile import *
@@ -303,7 +304,7 @@ def feedback_window():
     This is a simple window that pops up when the engagement index goes below the threshold.
     It incdlues a picture, and a short text asking the participant to press the button to close the window
     '''
-    layout = [[sg.Image('alarm.png', background_color = '#e6e6e6')]]
+    layout = [[sg.Image('coffee-cup.png', background_color = '#e6e6e6')]]
     
     return layout
 
@@ -318,6 +319,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     date_now = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     demo_file = './Results/' + date_now + '.csv'
     answer_file = './Results/' + date_now + '_answers.csv'
+    aduinoData = serial.Serial('com8', 115200)
+    time.sleep(1)
     
     random.shuffle(video_path)
 
@@ -345,14 +348,15 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     timer_running = False
     timer_paused = False
     time_remaining = -1
+    fd = False
 
     # prepare condition
     # NF = no feedback
     # F = feedback
     # FF = false feedback
-    conditions = ['F', 'F', 'F']
+    conditions = ['F_vibr', 'F_visual', 'NF']
     # shuffle conditions
-    random.shuffle(conditions)
+    #random.shuffle(conditions)
 
     # save condition information to txt file
     # with open('./Results/' + date_now + '_conditions.txt', 'w') as f:
@@ -600,9 +604,9 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
             condition = conditions[video_count]
             print('condition: ' + condition)
             
-            if condition == 'FF':
-                ff_list = get_false_feedback(window_sec, n_epochs)
-                i = 0
+            # if condition == 'FF':
+            #     ff_list = get_false_feedback(window_sec, n_epochs)
+            #     i = 0
 
             video['-VID_OUT-'].expand(True, True) 
 
@@ -627,6 +631,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 video['play'].update(visible = True)
                 video['pause'].update(visible = True)
                 video['feedback'].update(visible = True)
+                cmd = 'OFF' + "\r"
+                aduinoData.write(cmd.encode())
                 
 
             while True:
@@ -635,28 +641,43 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     list_player.play()
                     msg = markers['video resumed']
                     q_to_lsl.put(msg)
+
+                if event1 == 'm':
+                    cmd = 'OFF' + "\r"
+                    aduinoData.write(cmd.encode())
+
                     
                 if not ei_queue.empty():
                     ei = int(ei_queue.get())
                     print('message accepted from thread: ', ei, ' yay')
 
-                    if ei < 80 and condition == 'F':
+                    if ei < 80 and (condition == 'F_vibr' or condition == 'F_visual'):
                         count_low += 1
                         #video['feedback'].update(background_color = colors[ei].hex)
                         if count_low >= low_period and count_pause == 0:
-                            feedback = sg.Window('feedback', feedback_window(), element_justification='center', background_color = '#e6e6e6',size = (350,300), finalize=True, resizable=True, return_keyboard_events=True, no_titlebar=True, keep_on_top=True, grab_anywhere=True)
+                            msg = markers['feedback']
+                            q_to_lsl.put(msg)
+                            if condition == 'F_visual':
+                                feedback = sg.Window('feedback', feedback_window(), element_justification='center', background_color = '#e6e6e6',size = (350,300), finalize=True, resizable=True, return_keyboard_events=True, no_titlebar=True, keep_on_top=True, grab_anywhere=True)
+                                fd = True
+                            elif condition == 'F_vibr':
+                                cmd = 'ON' + "\r"
+                                aduinoData.write(cmd.encode())
+
                             #video['feedback'].update(value = 'hello')
-                            #show feedback for 5 seconds
+                            #show feedback for 5 Sseconds
                             #time.sleep(5)
                             count_pause = 1
                             # check if the button was pressed, if pressed close the window
-                            while True:
+                            while fd:
                                 event2, values2 = feedback.read(timeout=1000)
                                 if event2 == 'm':
                                     feedback.close()
+                                    fd = False
                                     break
                                 if event2 == sg.WIN_CLOSED:
                                     feedback.close()
+                                    fd = False
                                     break
                         # count low is used to determine how long ei values were below threshold (3*5 - 15 seconds)
                         # count_pause is used for the pause between feedbacks: pause_length * 5 seconds
@@ -667,14 +688,14 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     else:
                         count_low = 0
                         count_pause = 0
-                        video['feedback'].update(value = '')
+                        #video['feedback'].update(value = '')
 
                     
-                    if condition == 'FF':
-                        ei = int(ff_list[i])
-                        print(ei)
-                        video['feedback'].update(background_color = colors[ei].hex)
-                        i+=1
+                    # if condition == 'FF':
+                    #     ei = int(ff_list[i])
+                    #     print(ei)
+                    #     video['feedback'].update(background_color = colors[ei].hex)
+                    #     i+=1
 
                 if event1 == 'pause':
                     list_player.pause()
@@ -722,7 +743,8 @@ if __name__ == "__main__":
             'attention': 4,
             'between video calibartion start': 5,
             'between video calibration end': 6,
-            'last video ended': 7}
+            'last video ended': 7,
+            'feedback': 8'}
     
     app(q_from_lsl, q_to_lsl, markers)
                 
