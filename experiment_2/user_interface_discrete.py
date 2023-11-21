@@ -319,7 +319,9 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     date_now = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     demo_file = './Results/' + date_now + '.csv'
     answer_file = './Results/' + date_now + '_answers.csv'
-    aduinoData = serial.Serial('com8', 115200)
+
+    #when arduino connected, uncomment this:
+    #aduinoData = serial.Serial('com8', 115200)
     time.sleep(1)
     
     random.shuffle(video_path)
@@ -354,7 +356,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     # NF = no feedback
     # F = feedback
     # FF = false feedback
-    conditions = ['F_vibr', 'F_visual', 'NF']
+    #conditions = ['F_vibr', 'F_visual', 'NF']
+    conditions = ['F_visual', 'F_visual', 'NF']
     # shuffle conditions
     #random.shuffle(conditions)
 
@@ -632,7 +635,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 video['pause'].update(visible = True)
                 video['feedback'].update(visible = True)
                 cmd = 'OFF' + "\r"
-                aduinoData.write(cmd.encode())
+                #aduinoData.write(cmd.encode())
                 
 
             while True:
@@ -644,7 +647,9 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
 
                 if event1 == 'm':
                     cmd = 'OFF' + "\r"
-                    aduinoData.write(cmd.encode())
+                    msg = markers['button_pressed']
+                    q_to_lsl.put(msg)
+                    #aduinoData.write(cmd.encode())
 
                     
                 if not ei_queue.empty():
@@ -662,7 +667,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                                 fd = True
                             elif condition == 'F_vibr':
                                 cmd = 'ON' + "\r"
-                                aduinoData.write(cmd.encode())
+                                #aduinoData.write(cmd.encode())
 
                             #video['feedback'].update(value = 'hello')
                             #show feedback for 5 Sseconds
@@ -673,6 +678,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                                 event2, values2 = feedback.read(timeout=1000)
                                 if event2 == 'm':
                                     feedback.close()
+                                    msg = markers['button_pressed']
+                                    q_to_lsl.put(msg)
                                     fd = False
                                     break
                                 if event2 == sg.WIN_CLOSED:
@@ -744,7 +751,8 @@ if __name__ == "__main__":
             'between video calibartion start': 5,
             'between video calibration end': 6,
             'last video ended': 7,
-            'feedback': 8'}
+            'feedback': 8,
+            'button_pressed': 9}
     
     app(q_from_lsl, q_to_lsl, markers)
                 
