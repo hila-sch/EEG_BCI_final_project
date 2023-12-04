@@ -4,7 +4,5 @@ Welcome to the experiment! Here's a brief overview of what to expect:
 3. Visual feedack: An image of a coffee cup signifies low alertness. 
 4. Haptic feedback: A vibration signifies low alertness.
 5. When you see/feel the feedback, press the button to acknowledge the feedback. Then, try to focus better on the lecture. 
-6. Before and after each lecture, you will be asked to answer questions about the content of the lecture. 
-If you are unsure of an answer, it's better to leave the question blank than to guess.
 7. If you experience any discomfort, you can pause the video and inform the experimenter.
 
