@@ -19,7 +19,9 @@ import sys
 import csv
 
 from mne_realtime import LSLClient, MockLSLStream
+from mne_lsl.lsl import local_clock
 import mne_realtime
+from mne_lsl.stream import StreamLSL as Stream
 import numpy as np
 from pylsl import StreamInfo, StreamOutlet
 
@@ -212,7 +214,7 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     ei_min, ei_max = find_min_max(participant_number)
     
     
-    # threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
+    #threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
 
     # this is the host id that identifies your stream on LSL
     host = 'mne_stream'

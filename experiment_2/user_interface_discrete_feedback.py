@@ -216,7 +216,7 @@ def form_window():
 
 def attention_questions():
     '''This function returns a layout for basic data entry form.'''
-    col1 = [
+    layout = [
         [sg.Text('Please respond to the following questions:', font=QUESTION_FONT)],
         [sg.Text('', size=(1,1))],
         [sg.Text('Are you diagnosed with Attention deficit hyperactivity disorder (ADHD)?', font=QUESTION_FONT)],
@@ -228,8 +228,7 @@ def attention_questions():
                                 [sg.Text('', size= (1,1))],
         [sg.Text("Please explain why:  ")],
         [sg.Multiline(size=(100, 5), key='textbox')],
-        [sg.Text('', size=(1,1))]]
-    col2 = [
+        [sg.Text('', size=(1,1))],
         [sg.Text('Feedback on my attention level can help me focus better', font=QUESTION_FONT)],
                                 [sg.Radio('Strongly Disagree', 'att_feedback', key='-2_feedback')],
                                 [sg.Radio('Disagree', 'att_feedback', key='-1_feedback')],
@@ -237,7 +236,8 @@ def attention_questions():
                                 [sg.Radio('Agree ', 'att_feedback',  key = '1_feedback')],
                                 [sg.Radio('Strongly Agree', 'att_feedback', key = '2_feedback')],
                                 [sg.Text('', size= (1,1))],
-        [sg.Text('', size=(1,1))]]
+        [sg.Text('', size=(1,1))],
+        [sg.Submit(key = 'submit_attention')]]
         # [sg.Text('I often catch myself daydreaming while working/studying', font=QUESTION_FONT)],
         #                         [sg.Radio('Strongly Disagree', 'daydream', key='-2_daydream')],
         #                         [sg.Radio('Disagree', 'daydream', key='-1_daydream')],
@@ -254,8 +254,8 @@ def attention_questions():
     #                             [sg.Radio('Strongly Agree', 'concentrate', key = '2_concentrate')],
     #                             [sg.Text('', size= (1,1))],
 
-    layout = [[sg.Column(col1), sg.Column(col2)],
-        [sg.Submit(key = 'submit_attention')]]
+    # layout = [[sg.Column(col1), sg.Column(col2)],
+    #     [sg.Submit(key = 'submit_attention')]]
     return layout
 
 def the_thread(window: sg.Window, q_from_lsl: mp.Queue, ei_queue: queue.Queue, video_event: threading.Event):

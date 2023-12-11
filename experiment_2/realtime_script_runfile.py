@@ -228,7 +228,7 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
 
     # Load a file to stream raw data
     # #data_path = sample.data_path()
-    data_path = 'C:/Users/hilas/Desktop/Pilot_results/P2pilot.fif'
+    data_path = r"./P2pilot.fif"
     # #raw_fname = data_path  / 'MEG' / 'sample' / 'sample_audvis_filt-0-40_raw.fif'
     raw = read_raw_fif(data_path).load_data()
 

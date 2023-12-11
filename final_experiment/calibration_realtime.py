@@ -182,7 +182,8 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
     
 
     # this is the host id that identifies your stream on LSL
-    host = 'mne_stream'
+    #host = 'mne_stream'
+    host = 'mne_stream_EEG_4_250.0_float32_UT177560'
     # this is the max wait time in seconds until client connection
     wait_max = 5
 
