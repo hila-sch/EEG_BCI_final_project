@@ -10,26 +10,35 @@ import multiprocessing as mp
 import threading
 from datetime import datetime
 import pandas as pd
+from mne_lsl.stream import StreamLSL as Stream
+import mne
 
-from mne.datasets import sample
-from mne.io import read_raw_fif
+# from mne.datasets import sample
+# from mne.io import read_raw_fif
 import time
 import math
 import sys
 import csv
 
-from mne_realtime import LSLClient, MockLSLStream
+# from mne_realtime import LSLClient, MockLSLStream
 from mne_lsl.lsl import local_clock
-import mne_realtime
+# import mne_realtime
 from mne_lsl.stream import StreamLSL as Stream
 import numpy as np
 from pylsl import StreamInfo, StreamOutlet
 import pylsl
 
-# def filter_raw(epoch, bandpass=(0.5, 45), notch=(50), notch_width=5):
-#     epoch.notch_filter(notch, notch_widths=notch_width)
+# def filter_raw(raw, bandpass=(0.5, 45), notch=(50), notch_width=5):
+#     raw.notch_filter(notch, notch_widths=notch_width)
 #     raw.filter(l_freq=bandpass[0], h_freq=bandpass[1])
 #     return raw
+class A:
+    def __init__(self, i):
+        self.b = i
+    def __exit__(*args, **kwargs):
+        print ("exit")
+    def __enter__(*args, **kwargs):
+        print ("enter")
 
 def ewma(x, alpha):
     '''
@@ -60,14 +69,14 @@ def ewma(x, alpha):
     # Calculate the ewma
     return np.dot(w, x[::np.newaxis]) / w.sum(axis=1)
 
-def calculate_EI (epoch, bands):
+def calculate_EI (raw, bands):
     '''
-    Calculate the EI for each epoch and return a list of EI values.
+    Calculate the EI for each raw and return a list of EI values.
 
     Parameters:
     -----------
-    epoch : mne.epochs.Epochs
-            Epochs object containing the data.
+    raw : mne.raws.raws
+            raws object containing the data.
     bands : dictionary
             Dictionary containing the bands' names and their limits.
             Example: bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
@@ -75,10 +84,10 @@ def calculate_EI (epoch, bands):
     Returns:
     --------
     ei : list
-            List of EI values for each epoch.
+            List of EI values for each raw.
 
     To calculate the EI:
-    The function first calculates the PSD for each epoch,
+    The function first calculates the PSD for each raw,
     then averages the PSD over all electrodes and then averages the PSD over the
     frequencies in the band of interest. 
     The EI is then calculated by dividing the average PSD of the beta band by 
@@ -87,11 +96,15 @@ def calculate_EI (epoch, bands):
     avg_bands = {}
     for band_name, band_limits in bands.items():
         low, high = band_limits
-        psds = epoch.compute_psd(method='welch', fmin=low, fmax=high)
-        avg_over_electrodes= psds.get_data().mean(1)
-        avg_over_band = avg_over_electrodes.mean(1)
+        psds = raw.compute_psd(method='welch', fmin=low, fmax=high)
+        # dimensions of psds
+        # print(psds.get_data().shape)
+        avg_over_electrodes= psds.get_data().mean(0)
+        # print(avg_over_electrodes.shape)
+        avg_over_band = avg_over_electrodes.mean(0)
+    #     avg_over_band = avg_over_electrodes.mean(1)
         avg_bands[band_name] = avg_over_band.tolist()
-        # print(avg_bands[band_name])
+        #print(avg_bands[band_name])
     
     sum_lists = np.add(avg_bands['theta'], avg_bands['alpha'])
     ei = np.divide(avg_bands['beta'], sum_lists)
@@ -221,16 +234,15 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
 
     # this is the host id that identifies your stream on LSL
     #host = 'mne_stream'
-    print("looking for streams")
-    streams = pylsl.resolve_streams()
-    # print stream names
-    for ii, stream in enumerate(streams):
-        print('%d: %s' % (ii, stream.name()))
+    stream_name = '0'
+    while stream_name != 'EE225-000000-000758-02-DESKTOP-8G8988B':
+    #  while True:
+        streams = pylsl.resolve_streams()
+        for ii, stream in enumerate(streams):
+            stream_name = stream.name()
+            print('%d: %s' % (ii, stream_name))
 
-
-
-    host = 'EE225-000000-000758-02-DESKTOP-8G8988B'
-    host = 'EE225-000000-000758'
+    print('found stream')
     # name = 
     wait_max = 5
 
@@ -247,14 +259,15 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     # notch_width = 10
 
 
-    # number of epochs to compute EI for
-    # n_epochs = 3
+    # number of raws to compute EI for
+    # n_raws = 3
 
-    # number of seconds per epoch
+    # number of seconds per raw
     n_sec = 5
 
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
-    channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
+    #channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
+    channels = ['0','1']
     ei_score = []
     avg_ei = []
     temp_result = []
@@ -276,38 +289,52 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
 
     # with MockLSLStream(host, raw, 'eeg'):
-    with LSLClient(host=host) as client:
-        client_info = client.get_measurement_info()
-        sfreq = int(client_info['sfreq'])
+    
+    stream = Stream(bufsize=5, name= stream_name)  # 5 seconds of buffer
+    stream.connect(acquisition_delay=0.2)
+    print(stream.info)
 
-        # print message from parent process
-        print('Child process started')
+    # with LSLClient(host=host) as client:
+    # client_info = client.get_measurement_info()
+    sfreq = stream.info["sfreq"]
 
-        # wait for video start
-        msg = event_queue.get()
-        
-        # start computing EI when video starts
+    # print message from parent process
+    print('Child process started')
+
+    # wait for video start
+    msg = event_queue.get()
+    
+    # start computing EI when video starts
+    with A(1):
         if msg == markers['video start']:
             print("video started- will now compute engagement index")
             count = 0
             while end_event.is_set() == False:
                 # while video_event.is_set():
-                # for ii in range(n_epochs):
+                # for ii in range(n_raws):
+                
                 tic = time.perf_counter()
                 count+=1
 
-                # print('Got epoch %d/%d' % (ii + 1, n_epochs))
-                epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
+                # print('Got raw %d/%d' % (ii + 1, n_raws))
+                #winsize = int(n_sec * sfreq)
+                winsize = n_sec
+                data, ts = stream.get_data(winsize)
+                #check the size of data
+                print('size', data.shape)
+                raw = mne.io.RawArray(data=data, info=stream.info, verbose=False)
+                # raw = client.get_data_as_raw(n_samples=sfreq*n_sec)
 
                 # resample
-                epoch.pick_channels(channels)
-                epoch.resample(200)
+                # print(raw.ch_names)
+                raw.pick(channels)
+                # raw.resample(200)
 
                 # filter data
-                epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
+                raw.filter(l_freq=bandpass[0], h_freq=bandpass[1])
 
                 # calculate EI
-                ei = calculate_EI(epoch, bands)
+                ei = calculate_EI(raw, bands)
                 print(f'ei computed is {ei}')
 
                 temp_score = ei.item(-1)
@@ -370,27 +397,35 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
                 print(f'ei score is : {ei_result}')
                 toc = time.perf_counter()
 
+         
+
                 print(f"computation took {toc - tic:0.4f} seconds")
- 
+                # sleep for 5 seconds minus the time it took to compute the EI
+                time.sleep(4 - (toc - tic))
+
                 
                 msg = ei_result
 
                 # send the score to the parent process for feedback only during the video
                 if video_event.is_set():
-                    print('sending feedcack to parent process')
+                    print('sending ei to parent process')
                     q_from_lsl.put(msg)
 
 
-                 # every 5 minutes save to df
+                    # every 5 minutes save to df
                 if count == 12:       
                 #df = pd.DataFrame({'temp_result': ei_score, 'mid_result': mid_result, 'ewma_result': ewma_result, 'norm_result': norm_result})
                     df = pd.DataFrame({'temp_result': ei_score, 'mid_result': ei_mid, 'ewma_result': ewma_result, 'norm_result': norm_result})
                     df.to_csv(df_file, index=False)
                     count = 0
 
+                # sleep
+
+                #print('sleeping for 5 seconds')
+
             df = pd.DataFrame({'temp_result': ei_score, 'mid_result': ei_mid, 'ewma_result': ewma_result, 'norm_result': norm_result})
             df.to_csv(df_file, index=False)
-        
+    
     print('Streams closed')
 
 
