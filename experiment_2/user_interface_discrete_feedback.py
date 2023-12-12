@@ -8,7 +8,7 @@ import re
 from playsound import playsound
 import time
 from pathlib import Path
-from colour import Color
+# from colour import Color
 import queue
 from datetime import datetime
 import serial
@@ -336,7 +336,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     answer_file = './Results/' + date_now + '_answers.csv'
 
     #when arduino connected, uncomment this:
-    aduinoData = serial.Serial('com3', 115200)
+    # aduinoData = serial.Serial('com3', 115200)
     time.sleep(1)
 
 
@@ -352,12 +352,12 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     pause_length = feedback_pause / window_sec
 
     # prepare colors:
-    red = Color("red")
-    yellow = Color("yellow")
-    green = Color("Green")
-    n = 100
-    colors = list(red.range_to(yellow,int(n/2)))
-    colors.extend(list(yellow.range_to(green,int(n/2))))
+    # red = Color("red")
+    # yellow = Color("yellow")
+    # green = Color("Green")
+    # n = 100
+    # colors = list(red.range_to(yellow,int(n/2)))
+    # colors.extend(list(yellow.range_to(green,int(n/2))))
 
     relax = False
     sound = False
