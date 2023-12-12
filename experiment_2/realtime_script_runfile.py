@@ -282,8 +282,8 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
                 print("video started- will now compute engagement index")
                 while end_event.is_set() == False:
                     # while video_event.is_set():
-                    for ii in range(n_epochs):
-                        tic = time.perf_counter()
+                    # for ii in range(n_epochs):
+                        # tic = time.perf_counter()
 
                         print('Got epoch %d/%d' % (ii + 1, n_epochs))
                         epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)

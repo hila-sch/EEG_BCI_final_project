@@ -1,6 +1,7 @@
 import serial
 import time
-aduinoData = serial.Serial('com8', 115200)
+
+aduinoData = serial.Serial('com3', 115200)
 time.sleep(1)
 
 while True:

@@ -24,6 +24,7 @@ import mne_realtime
 from mne_lsl.stream import StreamLSL as Stream
 import numpy as np
 from pylsl import StreamInfo, StreamOutlet
+import pylsl
 
 # def filter_raw(epoch, bandpass=(0.5, 45), notch=(50), notch_width=5):
 #     epoch.notch_filter(notch, notch_widths=notch_width)
@@ -198,6 +199,7 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     '''
     video_event = threading.Event()
     end_event = threading.Event()
+    during_video = threading.Event()
     # event_array = np.empty((0,2))
     event_queue = queue.Queue()
 
@@ -216,10 +218,18 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     
     #threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
 
-    # this is the host id that identifies your stream on LSL
-    host = 'mne_stream'
 
-    # this is the max wait time in seconds until client connection
+    # this is the host id that identifies your stream on LSL
+    #host = 'mne_stream'
+    print("looking for streams")
+    streams = pylsl.resolve_streams()
+    # print stream names
+    for ii, stream in enumerate(streams):
+        print('%d: %s' % (ii, stream.name()))
+
+
+
+    host = 'mne_stream_EEG_7_250.0_float32_UT177560'
     wait_max = 5
 
 
@@ -236,13 +246,13 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
 
 
     # number of epochs to compute EI for
-    n_epochs = 3
+    # n_epochs = 3
 
     # number of seconds per epoch
     n_sec = 5
 
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
-    channels = ['F7', 'F3', 'Fz', 'F4', 'F8', 'O1', 'O2', 'Oz']
+    channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
     ei_score = []
     avg_ei = []
     temp_result = []
@@ -255,7 +265,10 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     info = StreamInfo(name='Trigger_stream', type='Markers', channel_count=1, nominal_srate=0, source_id='psy_marker')
     outlet = StreamOutlet(info) 
     # Broadcast the stream.   
-    # outlet.push_sample(['start'])
+    #outlet.push_sample(['start'])
+
+    
+
 
     # start the event manager thread
     threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, video_event, end_event, outlet), daemon=True).start()
@@ -274,100 +287,107 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
         # start computing EI when video starts
         if msg == markers['video start']:
             print("video started- will now compute engagement index")
+            count = 0
             while end_event.is_set() == False:
                 # while video_event.is_set():
-                for ii in range(n_epochs):
-                    tic = time.perf_counter()
+                # for ii in range(n_epochs):
+                tic = time.perf_counter()
+                count+=1
 
-                    print('Got epoch %d/%d' % (ii + 1, n_epochs))
-                    epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
+                # print('Got epoch %d/%d' % (ii + 1, n_epochs))
+                epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
 
-                    # resample
-                    epoch.pick_channels(channels)
-                    epoch.resample(128)
+                # resample
+                epoch.pick_channels(channels)
+                epoch.resample(200)
 
-                    # filter data
-                    epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
+                # filter data
+                epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
 
-                    # calculate EI
-                    ei = calculate_EI(epoch, bands)
-                    print(f'ei computed is {ei}')
+                # calculate EI
+                ei = calculate_EI(epoch, bands)
+                print(f'ei computed is {ei}')
 
-                    temp_score = ei.item(-1)
-                    print(temp_score)
+                temp_score = ei.item(-1)
+                print(temp_score)
 
-                    ei_score.append(temp_score) # list that saves all the ei scores
-                    print(ei_score)
+                ei_score.append(temp_score) # list that saves all the ei scores
+                print(ei_score)
 
-                    # update min and max values if needed
-                    
-                    # create a list for the the last 30 seconds of EI scores
-                    # ei_window = []
-                    # add the last 3 EI scores (15 seconds):
-                    # if len(ei_score) > 0 :
-                    #     ei_window = ei_score[-3:] + temp_score
-                    # else:
-                    # ei_window = ei_score + temp_score
+                # update min and max values if needed
                 
+                # create a list for the the last 30 seconds of EI scores
+                # ei_window = []
+                # add the last 3 EI scores (15 seconds):
+                # if len(ei_score) > 0 :
+                #     ei_window = ei_score[-3:] + temp_score
+                # else:
+                # ei_window = ei_score + temp_score
+            
 
-                    ei_arr = np.array(ei_score)
-                    print("ei array created")
-                    #ei_mid = signal.medfilt(ei_arr, kernel_size=3)
+                ei_arr = np.array(ei_score)
+                print("ei array created")
+                #ei_mid = signal.medfilt(ei_arr, kernel_size=3)
 
-                    # apply median filter
-                    # if len(ei_arr) < 3:
-                    #     ei_mid = ei_arr
-                    # else:
-                    ei_mid = scipy.ndimage.median_filter(ei_arr, size = 3)
-                    print(ei_mid)
-                    print("median filter completed")
+                # apply median filter
+                # if len(ei_arr) < 3:
+                #     ei_mid = ei_arr
+                # else:
+                ei_mid = scipy.ndimage.median_filter(ei_arr, size = 3)
+                print(ei_mid)
+                print("median filter completed")
 
-                    # apply exponential weighted moving average
-                    ei_ewma = ewma(ei_mid, alpha = 0.2)
-                    print("ewma completed")
+                # apply exponential weighted moving average
+                ei_ewma = ewma(ei_mid, alpha = 0.2)
+                print("ewma completed")
 
-                        
-                    if min(ei_ewma) < ei_min:
-                        ei_min = min(ei_ewma)
-                        print("new min: ", ei_min)
-                    if max(ei_ewma) > ei_max:
-                        ei_max = max(ei_ewma)
-                        print("new max: ", ei_max)
+                    
+                if min(ei_ewma) < ei_min:
+                    ei_min = min(ei_ewma)
+                    print("new min: ", ei_min)
+                if max(ei_ewma) > ei_max:
+                    ei_max = max(ei_ewma)
+                    print("new max: ", ei_max)
 
-                    print('current min: ', ei_min, 'current max: ', ei_max)
+                print('current min: ', ei_min, 'current max: ', ei_max)
 
-                    # normalize the scores
-                    ei_norm = ((ei_ewma - ei_min) / (ei_max - ei_min)) * 100
+                # normalize the scores
+                ei_norm = ((ei_ewma - ei_min) / (ei_max - ei_min)) * 100
 
-                    # ei_norm = (ei_ewma - 0) / (1 - 0) * 100
-                    print("normalization completed")
+                # ei_norm = (ei_ewma - 0) / (1 - 0) * 100
+                print("normalization completed")
 
-                    # ei_result = math.ceil(np.mean(ei_norm))
-                    ei_result = math.ceil(ei_norm[-1])
+                # ei_result = math.ceil(np.mean(ei_norm))
+                ei_result = math.ceil(ei_norm[-1])
 
-                    temp_result.append(temp_score)
-                    #mid_result.append(ei_mid[-1])
-                    ewma_result.append(ei_ewma[-1])
-                    norm_result.append(ei_result)
+                temp_result.append(temp_score)
+                mid_result.append(ei_mid[-1])
+                ewma_result.append(ei_ewma[-1])
+                norm_result.append(ei_result)
 
-                    print(f'ei score is : {ei_result}')
-                    toc = time.perf_counter()
+                print(f'ei score is : {ei_result}')
+                toc = time.perf_counter()
 
-                    print(f"computation took {toc - tic:0.4f} seconds")
+                print(f"computation took {toc - tic:0.4f} seconds")
+ 
+                
+                msg = ei_result
 
-
+                # send the score to the parent process for feedback only during the video
+                if video_event.is_set():
                     print('sending feedcack to parent process')
-                    msg = ei_result
-
-                    # send the score to the parent process for feedback
                     q_from_lsl.put(msg)
 
 
-                        
+                 # every 5 minutes save to df
+                if count == 12:       
                 #df = pd.DataFrame({'temp_result': ei_score, 'mid_result': mid_result, 'ewma_result': ewma_result, 'norm_result': norm_result})
-                df = pd.DataFrame({'temp_result': ei_score, 'mid_result': ei_mid, 'ewma_result': ewma_result, 'norm_result': norm_result})
-                print(df)
-                df.to_csv(df_file, index=False)
+                    df = pd.DataFrame({'temp_result': ei_score, 'mid_result': ei_mid, 'ewma_result': ewma_result, 'norm_result': norm_result})
+                    df.to_csv(df_file, index=False)
+                    count = 0
+
+            df = pd.DataFrame({'temp_result': ei_score, 'mid_result': ei_mid, 'ewma_result': ewma_result, 'norm_result': norm_result})
+            df.to_csv(df_file, index=False)
         
     print('Streams closed')
 

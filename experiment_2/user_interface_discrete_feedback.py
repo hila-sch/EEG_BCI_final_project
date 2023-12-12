@@ -14,8 +14,8 @@ from datetime import datetime
 import serial
 import time
 import multiprocessing as mp
-#from realtime_script_discrete import *
-from realtime_script_runfile import *
+from realtime_script_discrete import *
+#from realtime_script_runfile import *
 import threading
 import time,webbrowser, pyautogui
 
@@ -336,7 +336,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     answer_file = './Results/' + date_now + '_answers.csv'
 
     #when arduino connected, uncomment this:
-    #aduinoData = serial.Serial('com8', 115200)
+    aduinoData = serial.Serial('com3', 115200)
     time.sleep(1)
 
 
@@ -604,7 +604,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     # time_remaining = 30 
                     # timer_paused = False
                     relax['Start'].update(visible = False)
-                    open_close(limit = 30)
+                    open_close(limit = 120)
                     relax['ok_from_relax'].update(visible = True)
 
                 # if timer_running and not timer_paused:
@@ -682,7 +682,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 video['pause'].update(visible = True)
                 video['feedback'].update(visible = True)
                 cmd = 'OFF' + "\r"
-                #aduinoData.write(cmd.encode())
+                aduinoData.write(cmd.encode())
                 
 
             while True:
@@ -692,41 +692,52 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     msg = markers['video resumed']
                     q_to_lsl.put(msg)
 
-                if event1 == 'm':
-                    cmd = 'OFF' + "\r"
-                    msg = markers['button_pressed']
-                    q_to_lsl.put(msg)
-                    #aduinoData.write(cmd.encode())
+                # if event1 == ' ':
+                #     cmd = 'OFF' + "\r"
+                #     msg = markers['button_pressed']
+                #     q_to_lsl.put(msg)
+                #     aduinoData.write(cmd.encode())
 
                     
                 if not ei_queue.empty():
                     ei = int(ei_queue.get())
                     print('message accepted from thread: ', ei, ' yay')
+                    count_pause +=1
 
-                    if ei < 80 and (condition == 'F_vibr' or condition == 'F_visual'):
+                    if ei < 40 and (condition == 'F_vibr' or condition == 'F_visual'):
                         count_low += 1
                         #video['feedback'].update(background_color = colors[ei].hex)
-                        if count_low >= low_period and count_pause == 0:
+                        # if count_low >= low_period and count_pause == 0:
+                        if count_low >= low_period and count_pause >= pause_length:
                             msg = markers['feedback']
                             q_to_lsl.put(msg)
+                            count_pause = 0
                             if condition == 'F_visual':
                                 feedback = sg.Window('feedback', feedback_window(), element_justification='center', background_color = '#e6e6e6',size = (350,300), finalize=True, resizable=True, return_keyboard_events=True, no_titlebar=True, keep_on_top=True, grab_anywhere=True)
                                 fd = True
                             elif condition == 'F_vibr':
                                 cmd = 'ON' + "\r"
-                                #aduinoData.write(cmd.encode())
+                                aduinoData.write(cmd.encode())
+                                fd = True
 
                             #video['feedback'].update(value = 'hello')
                             #show feedback for 5 Sseconds
                             #time.sleep(5)
-                            count_pause = 1
+                            # count_pause = 1
                             # check if the button was pressed, if pressed close the window
                             while fd:
                                 event2, values2 = feedback.read(timeout=1000)
-                                if event2 == 'm':
+                                if event2 == ' ' and condition == 'F_visual':
                                     feedback.close()
                                     msg = markers['button_pressed']
                                     q_to_lsl.put(msg)
+                                    fd = False
+                                    break
+                                elif event2 == ' ' and condition == 'F_vibr':
+                                    cmd = 'OFF' + "\r"
+                                    msg = markers['button_pressed']
+                                    q_to_lsl.put(msg)
+                                    aduinoData.write(cmd.encode())
                                     fd = False
                                     break
                                 if event2 == sg.WIN_CLOSED:
@@ -735,13 +746,13 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                                     break
                         # count low is used to determine how long ei values were below threshold (3*5 - 15 seconds)
                         # count_pause is used for the pause between feedbacks: pause_length * 5 seconds
-                        elif count_low >= low_period and (count_pause < pause_length):
-                            count_pause +=1
-                        elif count_low >= low_period and count_pause == pause_length:
-                            count_pause = 0
+                        # elif count_low >= low_period and (count_pause < pause_length):
+                        #     count_pause +=1
+                        # elif count_low >= low_period and count_pause == pause_length:
+                        #     count_pause = 0
                     else:
                         count_low = 0
-                        count_pause = 0
+                        # count_pause = 0
                         #video['feedback'].update(value = '')
 
                     

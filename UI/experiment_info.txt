@@ -1,8 +1,8 @@
 Welcome to the experiment! Here's a brief overview of what to expect:
-1. you will be watching three short video lectures on different topics.
-2. For some of the videos, you will receive feedback on your sustained attention level. 
+1. you will be watching a video lecture divided into 3 short (~13 min) lecture segments. 
+2. For some of the segments, you will receive feedback on your sustained attention level. 
 3. Visual feedack: An image of a coffee cup signifies low alertness. 
 4. Haptic feedback: A vibration signifies low alertness.
-5. When you see/feel the feedback, press the button to acknowledge the feedback. Then, try to focus better on the lecture. 
+5. When you see/feel the feedback, press space to acknowledge the feedback. Then, try to focus better on the lecture. 
 7. If you experience any discomfort, you can pause the video and inform the experimenter.
 

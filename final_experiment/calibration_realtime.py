@@ -183,28 +183,30 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
 
     # this is the host id that identifies your stream on LSL
     #host = 'mne_stream'
-    host = 'mne_stream_EEG_4_250.0_float32_UT177560'
+    host = 'mne_stream_EEG_7_250.0_float32_UT177560'
     # this is the max wait time in seconds until client connection
     wait_max = 5
 
 
-    #for the loop:
-    stop_time = 300
-    t = 0 
+    bandpass = (1, 45)
+    # notch = 50
+    # notch_width = 10
 
+
+    # number of epochs to compute EI for
     n_epochs = 3
+
+    # number of seconds per epoch
     n_sec = 5
+
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
-    channels = ['FP1', 'FP2', 'F7', 'F3', 'F4', 'F8', 'O1', 'O2']
+    channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
     ei_score = []
-    ei_mid_to_file = []
-    ei_ewma_to_file = []
-    ei_ma = []
-    ei_bs = []
+    avg_ei = []
+    temp_result = []
+    mid_result = []
     ewma_result = []
-
-    bandpass = (0.5, 45)
-
+    norm_result = []
 
     
 
@@ -218,35 +220,37 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
 
 
         time.sleep(5)
+
         while end_event.is_set() == False:
             # while video_event.is_set():
             epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
+
             # resample
             epoch.pick_channels(channels)
-            epoch.resample(128)
+            epoch.resample(200)
 
             # filter data
             epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
+
             # filtered_epoch = filter_raw(epoch)
             #epoch.filter(l_freq = 0.5, h_freq = 40)
 
             # calculate EI
             ei = calculate_EI(epoch, bands)
+            print(f'ei computed is {ei}')
+
             temp_score = ei.item(-1)
             print(temp_score)
+
             ei_score.append(temp_score) # list that saves all the ei scores
-            # print(ei_score)
+            print(ei_score)
         
 
             ei_arr = np.array(ei_score)
             print("ei array created")
             #ei_mid = signal.medfilt(ei_arr, kernel_size=3)
 
-            # apply median filter
-            if len(ei_arr) < 3:
-                ei_mid = ei_arr
-            else:
-                ei_mid = scipy.ndimage.median_filter(ei_arr, size = 3)
+            ei_mid = scipy.ndimage.median_filter(ei_arr, size = 3)
             print("median filter completed")
 
             # apply exponential weighted moving average
@@ -297,14 +301,13 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
             # ei_score.extend(temp_score)
 
     
-            print('Streams closed')
-            with open('./Results/participant.txt', 'r') as f:
-                participant = int(f.read())
-            np.save(f'./Results/min_max_ei_{participant}.npy', [min(ewma_result), max(ewma_result)])
-            # fname = f'C:/Users/cogexp/Desktop/Hila_thesis/calib{participant}.xdf'
-            # convert lists to numpy array
+        with open('./Results/participant.txt', 'r') as f:
+            participant = int(f.read())
+        np.save(f'./Results/min_max_ei_{participant}.npy', [min(ewma_result), max(ewma_result)])
+        # fname = f'C:/Users/cogexp/Desktop/Hila_thesis/calib{participant}.xdf'
+        # convert lists to numpy array
 
-
+        print('Streams closed')
  
 # main function is necessary here to enable script as own program
 # in such way a child process can be started (primarily for Windows)
