@@ -6,19 +6,29 @@ import multiprocessing as mp
 import threading
 import numpy as np
 
-from mne.datasets import sample
-from mne.io import read_raw_fif
+# from mne.datasets import sample
+# from mne.io import read_raw_fif
 import time
 import math
+from mne_lsl.stream import StreamLSL as Stream
+import mne
 
 
-from mne_realtime import LSLClient, MockLSLStream
+# from mne_realtime import LSLClient, MockLSLStream
 import numpy as np
 from pylsl import StreamInfo, StreamOutlet
+import pylsl
 
 import os
 from pathlib import Path
 
+class A:
+    def __init__(self, i):
+        self.b = i
+    def __exit__(*args, **kwargs):
+        print ("exit")
+    def __enter__(*args, **kwargs):
+        print ("enter")
 def ewma(x, alpha):
     '''
     Returns the exponentially weighted moving average of x.
@@ -48,14 +58,52 @@ def ewma(x, alpha):
     # Calculate the ewma
     return np.dot(w, x[::np.newaxis]) / w.sum(axis=1)
 
-def calculate_EI (epoch, bands):
+# def calculate_EI (epoch, bands):
+#     '''
+#     Calculate the EI for each epoch and return a list of EI values.
+
+#     Parameters:
+#     -----------
+#     epoch : mne.epochs.Epochs
+#             Epochs object containing the data.
+#     bands : dictionary
+#             Dictionary containing the bands' names and their limits.
+#             Example: bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
+
+#     Returns:
+#     --------
+#     ei : list
+#             List of EI values for each epoch.
+
+#     To calculate the EI:
+#     The function first calculates the PSD for each epoch,
+#     then averages the PSD over all electrodes and then averages the PSD over the
+#     frequencies in the band of interest. 
+#     The EI is then calculated by dividing the average PSD of the beta band by 
+#     the sum of the average PSD of the theta and alpha bands.'''
+
+#     avg_bands = {}
+#     for band_name, band_limits in bands.items():
+#         low, high = band_limits
+#         psds = epoch.compute_psd(method='welch', fmin=low, fmax=high)
+#         avg_over_electrodes= psds.get_data().mean(1)
+#         avg_over_band = avg_over_electrodes.mean(1)
+#         avg_bands[band_name] = avg_over_band.tolist()
+#         # print(avg_bands[band_name])
+    
+#     sum_lists = np.add(avg_bands['theta'], avg_bands['alpha'])
+#     ei = np.divide(avg_bands['beta'], sum_lists)
+#     return ei
+
+
+def calculate_EI (raw, bands):
     '''
-    Calculate the EI for each epoch and return a list of EI values.
+    Calculate the EI for each raw and return a list of EI values.
 
     Parameters:
     -----------
-    epoch : mne.epochs.Epochs
-            Epochs object containing the data.
+    raw : mne.raws.raws
+            raws object containing the data.
     bands : dictionary
             Dictionary containing the bands' names and their limits.
             Example: bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
@@ -63,23 +111,27 @@ def calculate_EI (epoch, bands):
     Returns:
     --------
     ei : list
-            List of EI values for each epoch.
+            List of EI values for each raw.
 
     To calculate the EI:
-    The function first calculates the PSD for each epoch,
+    The function first calculates the PSD for each raw,
     then averages the PSD over all electrodes and then averages the PSD over the
     frequencies in the band of interest. 
     The EI is then calculated by dividing the average PSD of the beta band by 
     the sum of the average PSD of the theta and alpha bands.'''
-
+    
     avg_bands = {}
     for band_name, band_limits in bands.items():
         low, high = band_limits
-        psds = epoch.compute_psd(method='welch', fmin=low, fmax=high)
-        avg_over_electrodes= psds.get_data().mean(1)
-        avg_over_band = avg_over_electrodes.mean(1)
+        psds = raw.compute_psd(method='welch', fmin=low, fmax=high)
+        # dimensions of psds
+        # print(psds.get_data().shape)
+        avg_over_electrodes= psds.get_data().mean(0)
+        # print(avg_over_electrodes.shape)
+        avg_over_band = avg_over_electrodes.mean(0)
+    #     avg_over_band = avg_over_electrodes.mean(1)
         avg_bands[band_name] = avg_over_band.tolist()
-        # print(avg_bands[band_name])
+        #print(avg_bands[band_name])
     
     sum_lists = np.add(avg_bands['theta'], avg_bands['alpha'])
     ei = np.divide(avg_bands['beta'], sum_lists)
@@ -180,12 +232,22 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
     threading.Thread(target = event_manager, args=(q_to_lsl, markers, event_queue, bs_event, ma_event, end_event, outlet), daemon=True).start()
     
     
-
     # this is the host id that identifies your stream on LSL
     #host = 'mne_stream'
-    host = 'mne_stream_EEG_7_250.0_float32_UT177560'
-    # this is the max wait time in seconds until client connection
+    stream_name = '0'
+    while stream_name != 'EE225-000000-000758-02-DESKTOP-8G8988B':
+    #  while True:
+        streams = pylsl.resolve_streams()
+        for ii, stream in enumerate(streams):
+            stream_name = stream.name()
+            print('%d: %s' % (ii, stream_name))
+            if stream_name == 'EE225-000000-000758-02-DESKTOP-8G8988B':
+                break
+
+    print('found stream')
+    # name = 
     wait_max = 5
+
 
 
     bandpass = (1, 45)
@@ -200,7 +262,8 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
     n_sec = 5
 
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
-    channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
+    #channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
+    channels = ['4', '5', '6', '3', '21', '22', '2']
     ei_score = []
     avg_ei = []
     temp_result = []
@@ -209,34 +272,53 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
     norm_result = []
 
     
+    stream = Stream(bufsize=5, name= stream_name)  # 5 seconds of buffer
+    stream.connect(acquisition_delay=0.2)
+    print(stream.info)
 
-    with LSLClient(host=host) as client:
+    # with LSLClient(host=host) as client:
+    # client_info = client.get_measurement_info()
+    sfreq = stream.info["sfreq"]
+
+    # print message from parent process
+    print('Child process started')
+
+
+    with A(1):
         # start_time = time.time()
-        client_info = client.get_measurement_info()
-        sfreq = int(client_info['sfreq'])
+        # client_info = client.get_measurement_info()
+        # sfreq = int(client_info['sfreq'])
 
         # print message from parent process
-        print('Child process started')
+        # print('Child process started')
 
 
         time.sleep(5)
 
         while end_event.is_set() == False:
             # while video_event.is_set():
-            epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
+            #epoch = client.get_data_as_epoch(n_samples=sfreq*n_sec)
 
+            winsize = n_sec
+            data, ts = stream.get_data(winsize)
             # resample
-            epoch.pick_channels(channels)
-            epoch.resample(200)
+            raw = mne.io.RawArray(data=data, info=stream.info, verbose=False)
+                # raw = client.get_data_as_raw(n_samples=sfreq*n_sec)
 
-            # filter data
-            epoch.filter(l_freq=bandpass[0], h_freq=bandpass[1])
+                # resample
+                # print(raw.ch_names)
+            raw.pick(channels)
+                # raw.resample(200)
+            # epoch.pick_channels(channels)
+            # epoch.resample(200)
+            raw.filter(l_freq=bandpass[0], h_freq=bandpass[1])
 
             # filtered_epoch = filter_raw(epoch)
             #epoch.filter(l_freq = 0.5, h_freq = 40)
 
             # calculate EI
-            ei = calculate_EI(epoch, bands)
+            #ei = calculate_EI(epoch, bands)
+            ei = calculate_EI(raw, bands)
             print(f'ei computed is {ei}')
 
             temp_score = ei.item(-1)
@@ -259,6 +341,9 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
             ewma_result.append(ei_ewma[-1])
 
             print("ewma completed")
+
+            # sleep for 5 seconds
+            time.sleep(5)
 
             # for ii in range(n_epochs):
             #             print('Got epoch %d/%d' % (ii + 1, n_epochs))
@@ -304,6 +389,7 @@ def lsl_calib(q_from_lsl, q_to_lsl, markers):
         with open('./Results/participant.txt', 'r') as f:
             participant = int(f.read())
         np.save(f'./Results/min_max_ei_{participant}.npy', [min(ewma_result), max(ewma_result)])
+        # np.save(f'./Results/min_max_ei_{participant}.npy', [0.01, 0.07])
         # fname = f'C:/Users/cogexp/Desktop/Hila_thesis/calib{participant}.xdf'
         # convert lists to numpy array
 
