@@ -1,3 +1,0 @@
-./videos/funct.mp4
-./videos/arthistory.mp4
-./videos/lang.mp4
