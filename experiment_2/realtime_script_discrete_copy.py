@@ -270,7 +270,7 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
     #channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
     #channels = ['0','1']
-    channels = ['4', '5', '6', '3', '21', '22', '2']
+    channels = ['4', '5', '1', '3', '20', '21', '2']
     ei_score = []
     avg_ei = []
     temp_result = []

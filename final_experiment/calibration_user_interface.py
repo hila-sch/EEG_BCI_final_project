@@ -9,13 +9,14 @@ import re
 from playsound import playsound
 import time
 from pathlib import Path
-from colour import Color
+# from colour import Color
 from playsound import playsound
 import multiprocessing as mp
 import threading
 from calibration_realtime import *
 from mne_lsl.stream import StreamLSL as Stream
 import mne
+import os
 
 
 
@@ -284,10 +285,12 @@ def calibration_app(q_from_lsl: mp.Queue(), q_to_lsl: mp.Queue(), markers):
                     if time_remaining == 0 and sound == False:
                         timer_running = False
                         timer_paused = True
-                        audio = 'ding.mp3'
+                        audio = 'C:/Users/NIRS/Documents/GitHub/EEG_BCI_final_project/ding.mp3'
                         # media = vlc.MediaPlayer(audio)
                         # media.play()
-                        playsound('ding.mp3')
+                        os.system("mpg123 " + audio)
+                        # playsound()
+                    
                         sound = True
                         relax['ok_from_relax'].update(visible = True)
                         msg = markers['baseline ended']

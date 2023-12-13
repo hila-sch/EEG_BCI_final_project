@@ -20,7 +20,7 @@ from realtime_script_discrete_copy import *
 import threading
 import time,webbrowser, pyautogui
 
-QUESTION_FONT = 'Arial 16 bold'
+QUESTION_FONT = 'Arial 20 bold'
 
 def open_close(url="https://chromedino.com/color/", limit = 10):
     '''This function opens a tab with the given url, waits for the given limit (in seconds) and then closes the tab.
@@ -387,7 +387,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     
     sg.theme('Reddit')
     # sg.set_options(font='Arial', keep_on_top=True)
-    sg.set_options(font='Arial')
+    sg.set_options(font='Arial 20')
     layout = [[sg.Column(welcome_window(), key = 'welcome'),
                sg.Column(form_window(), key = 'form', visible = False),
                sg.Column(txt_window(explainer_file, 'ok_from_explain'), key= 'explainer', visible = False),
@@ -606,7 +606,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     # time_remaining = 30 
                     # timer_paused = False
                     relax['Start'].update(visible = False)
-                    open_close(limit = 5)
+                    open_close(limit = 120)
                     relax['ok_from_relax'].update(visible = True)
 
                 # if timer_running and not timer_paused:
@@ -706,7 +706,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     print('message accepted from thread: ', ei, ' yay')
                     
 
-                    if ei < 40 and (condition == 'F_vibr' or condition == 'F_visual'):
+                    if ei < 45 and (condition == 'F_vibr' or condition == 'F_visual'):
                         count_low = count_low + 1
                         #video['feedback'].update(background_color = colors[ei].hex)
                         # if count_low >= low_period and count_pause == 0:
@@ -762,7 +762,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                         count_pause = 0
 
 
-                    elif ei >= 40:  
+                    elif ei >= 45:  
                         count_low = 0
                         if count_pause >= pause_length:
                             count_pause = 0
