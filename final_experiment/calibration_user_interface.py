@@ -14,6 +14,8 @@ from playsound import playsound
 import multiprocessing as mp
 import threading
 from calibration_realtime import *
+from mne_lsl.stream import StreamLSL as Stream
+import mne
 
 
 
@@ -283,8 +285,9 @@ def calibration_app(q_from_lsl: mp.Queue(), q_to_lsl: mp.Queue(), markers):
                         timer_running = False
                         timer_paused = True
                         audio = 'ding.mp3'
-                        media = vlc.MediaPlayer(audio)
-                        media.play()
+                        # media = vlc.MediaPlayer(audio)
+                        # media.play()
+                        playsound('ding.mp3')
                         sound = True
                         relax['ok_from_relax'].update(visible = True)
                         msg = markers['baseline ended']

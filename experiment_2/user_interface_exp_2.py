@@ -337,7 +337,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     answer_file = './Results/' + date_now + '_answers.csv'
 
     #when arduino connected, uncomment this:
-    # aduinoData = serial.Serial('com3', 115200)
+    aduinoData = serial.Serial('com10', 115200)
     time.sleep(1)
 
 
@@ -377,7 +377,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
     random.shuffle(feedback)
     # add the feedback list to the conditions list
     conditions.extend(feedback)
-    conditions = ['F_visual','F_visual','F_visual']
+    # conditions = ['F_visual','F_visual','F_visual']
     # shuffle conditions
     #random.shuffle(conditions)
 
@@ -684,7 +684,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                 video['pause'].update(visible = True)
                 video['feedback'].update(visible = True)
                 cmd = 'OFF' + "\r"
-                #aduinoData.write(cmd.encode())
+                aduinoData.write(cmd.encode())
                 
 
             while True:
@@ -694,11 +694,11 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     msg = markers['video resumed']
                     q_to_lsl.put(msg)
 
-                # if event1 == ' ':
-                #     cmd = 'OFF' + "\r"
-                #     msg = markers['button_pressed']
-                #     q_to_lsl.put(msg)
-                #     aduinoData.write(cmd.encode())
+                if event1 == ' ':
+                    cmd = 'OFF' + "\r"
+                    msg = markers['button_pressed']
+                    q_to_lsl.put(msg)
+                    aduinoData.write(cmd.encode())
 
                     
                 if not ei_queue.empty():
@@ -706,8 +706,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     print('message accepted from thread: ', ei, ' yay')
                     
 
-                    if ei < 95 and (condition == 'F_vibr' or condition == 'F_visual'):
-                        count_low += 1
+                    if ei < 40 and (condition == 'F_vibr' or condition == 'F_visual'):
+                        count_low = count_low + 1
                         #video['feedback'].update(background_color = colors[ei].hex)
                         # if count_low >= low_period and count_pause == 0:
                         print('ei was low for %d epochs' % count_low)
@@ -724,9 +724,9 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                                 feedback = sg.Window('feedback', feedback_window(), element_justification='center', background_color = '#e6e6e6',size = (350,300), finalize=True, resizable=True, return_keyboard_events=True, no_titlebar=True, keep_on_top=True, grab_anywhere=True)
                                 fd = True
                             elif condition == 'F_vibr':
-                                cmd = 'ON' + "\r"
-                                #aduinoData.write(cmd.encode())
-                                fd = True
+                                cmd = 'ON' + "\r" 
+                                aduinoData.write(cmd.encode())
+                                # fd = True
 
                             #video['feedback'].update(value = 'hello')
                             #show feedback for 5 Sseconds
@@ -741,13 +741,13 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                                     q_to_lsl.put(msg)
                                     fd = False
                                     break
-                                elif event2 == ' ' and condition == 'F_vibr':
-                                    cmd = 'OFF' + "\r"
-                                    msg = markers['button_pressed']
-                                    q_to_lsl.put(msg)
-                                    #aduinoData.write(cmd.encode())
-                                    fd = False
-                                    break
+                                # elif event2 == ' ' and condition == 'F_vibr':
+                                #     cmd = 'OFF' + "\r"
+                                #     msg = markers['button_pressed']
+                                #     q_to_lsl.put(msg)
+                                #     aduinoData.write(cmd.encode())
+                                #     fd = False
+                                #     break
                                 if event2 == sg.WIN_CLOSED:
                                     feedback.close()
                                     fd = False
@@ -761,7 +761,8 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                     if count_pause >= pause_length:
                         count_pause = 0
 
-                    else:
+
+                    elif ei >= 40:  
                         count_low = 0
                         if count_pause >= pause_length:
                             count_pause = 0

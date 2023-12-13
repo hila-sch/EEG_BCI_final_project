@@ -241,6 +241,8 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
         for ii, stream in enumerate(streams):
             stream_name = stream.name()
             print('%d: %s' % (ii, stream_name))
+            if stream_name == 'EE225-000000-000758-02-DESKTOP-8G8988B':
+                break
 
     print('found stream')
     # name = 
@@ -267,7 +269,8 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
 
     bands = {'theta': (4,8), 'alpha': (8, 12), 'beta': (12, 30)}
     #channels = ['F9', 'F10', 'F3', 'F4', 'FCz', 'O1', 'O2']
-    channels = ['0','1']
+    #channels = ['0','1']
+    channels = ['4', '5', '6', '3', '21', '22', '2']
     ei_score = []
     avg_ei = []
     temp_result = []
@@ -341,7 +344,7 @@ def lsl_main(q_from_lsl, q_to_lsl, markers):
                 print(temp_score)
 
                 ei_score.append(temp_score) # list that saves all the ei scores
-                print(ei_score)
+                #print(ei_score)
 
                 # update min and max values if needed
                 
