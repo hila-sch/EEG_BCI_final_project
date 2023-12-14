@@ -714,7 +714,7 @@ def app(q_from_lsl: mp.Queue, q_to_lsl: mp.Queue, markers: dict):
                         print('pause was %d epochs' % count_pause)
                         print(low_period)
                         # if count_low >= low_period and count_pause == 0:
-                        if count_low >= (low_period-1) and (count_pause >= pause_length or count_pause == 0):
+                        if count_low >= (low_period) and (count_pause >= pause_length or count_pause == 0):
                             count_low = 0
                             print("Feedback activated")
                             msg = markers['feedback']
